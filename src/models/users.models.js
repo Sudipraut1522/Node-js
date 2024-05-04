@@ -1,5 +1,5 @@
 // User.js
-import { DataTypes, Sequelize } from "sequelize";
+import { DataTypes } from "sequelize";
 import { sequelize } from "../db/index.js";
 const Users = sequelize.define("Register", {
   username: {

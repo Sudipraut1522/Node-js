@@ -62,7 +62,7 @@ const loginAdmin = asyncHandler(async (req, res) => {
     });
     console.log("isadin:", user.isAdmin);
 
-    if (!user) {
+    if (!user.isAdmin) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
     const id = user.id;
@@ -87,22 +87,17 @@ const loginAdmin = asyncHandler(async (req, res) => {
   }
 });
 
+const getAllVideo = asyncHandler(async (req, res) => {
+  try {
+    const allVideo = await VideoModel.findAll();
+
+    res.status(200).json({ users: allVideo });
+  } catch (error) {
+    console.error("Error occurred while retrieving users:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 const usersDetail = asyncHandler(async (req, res) => {
-  // try {
-  //   const { isAdmin } = req.params;
-  //   console.log("username", isAdmin.isAdmin);
-
-  //   const admin = await Users.findOne({
-  //     where: {
-  //       isAdmin: isAdmin,
-  //     },
-  //   });
-  //   console.log("user", admin.isAdmin);
-  //   if (admin.isAdmin == false) {
-  //     return res.status(500).json("user not found");
-  //   }
-
-  //   if (admin.isAdmin == true) {
   try {
     const allUsers = await Users.findAll();
 
@@ -111,12 +106,6 @@ const usersDetail = asyncHandler(async (req, res) => {
     console.error("Error occurred while retrieving users:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-  // } else {
-  //   res.send("your are not a admin");
-  // }
-  // } catch (err) {
-  //   console.log(err);
-  // }
 });
 
 const deleteUser = asyncHandler(async (req, res) => {
@@ -139,9 +128,12 @@ const deleteUser = asyncHandler(async (req, res) => {
 
 const uploadVideo = asyncHandler(async (req, res) => {
   try {
-    const { title, description, teacher } = req.body;
+    const { title, description, teachername } = req.body;
+    console.log("title", description);
 
-    if ([title, description, teacher].some((result) => result?.trim() == "")) {
+    if (
+      [title, description, teachername].some((result) => result?.trim() == "")
+    ) {
       throw new ApiError(400, "All fields are required");
     } else {
       const existingVideo = await VideoModel.findOne({
@@ -155,9 +147,9 @@ const uploadVideo = asyncHandler(async (req, res) => {
       }
 
       const videoFile = req.file?.path;
-      console.log("videofile", videoFile); // Assuming the video file is uploaded with the key 'video'
+
       if (!videoFile) {
-        throw new ApiError(400, "Video file is required");
+        throw new ApiError(400, "video and image file is required");
       }
 
       const cloudinaryResponse = await uploadOnCloudinary(videoFile);
@@ -167,9 +159,9 @@ const uploadVideo = asyncHandler(async (req, res) => {
 
       const video = await VideoModel.create({
         title: title,
-        url: cloudinaryResponse.secure_url, // Assuming you want to save the Cloudinary URL
+        videourl: cloudinaryResponse.secure_url,
         description: description,
-        teacher: teacher,
+        teachername: teachername,
       });
 
       if (!video) {
@@ -185,65 +177,35 @@ const uploadVideo = asyncHandler(async (req, res) => {
       .json({ message: err.message || "Sorry, failed to upload video" });
   }
 });
-// import multer from "multer";
-// import { v2 as cloudinary } from 'cloudinary';
-// import { CloudinaryStorage } from 'multer-storage-cloudinary';
-// import { VideoModel } from "./models/VideoModel"; // Assuming you have a VideoModel defined
 
-// Configure Cloudinary with your cloud name, API key, and API secret
-// import { v2 as cloudinary } from "cloudinary";
-// import fs from "fs";
-// cloudinary.config({
-//   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-//   api_key: process.env.CLOUDINARY_API_KEY,
-//   api_secret: process.env.CLOUDINARY_API_SECRET,
-// });
+const videoViews = asyncHandler(async (req, res) => {
+  const videoId = req.params.id;
+  console.log("videoid", videoId);
+  try {
+    const videos = await VideoModel.findOne({
+      where: {
+        id: videoId,
+      },
+    });
+    console.log("videodetail", videos);
 
-// const uploadVideo = async (req, res) => {
-//   try {
-//     const { title, description, teacher } = req.body;
+    if (!videos) {
+      return res.status(404).json({ error: "Video not found" });
+    }
 
-//     // Check if any required fields are empty or missing
-//     if (![title, description, teacher].every(Boolean)) {
-//       throw new Error("All fields are required");
-//     }
+    videos.views++;
+    await videos.save();
 
-//     // Check if a video with the same title already exists
-//     const existingVideo = await VideoModel.findOne({
-//       where: {
-//         title: title,
-//       },
-//     });
-//     if (existingVideo) {
-//       throw new Error("Video with title already exists");
-//     }
-
-//     // Check if a video file is uploaded
-//     if (!req.file) {
-//       throw new Error("Video file is required");
-//     }
-
-//     // Upload the video file to Cloudinary
-//     const cloudinaryResponse = await cloudinary.uploader.upload(req.file.path);
-
-//     // Create a new video record in the database
-//     const video = await VideoModel.create({
-//       title,
-//       url: cloudinaryResponse.secure_url,
-//       description,
-//       teacher,
-//     });
-
-//     // Send success response if everything goes well
-//     res.status(201).json({ message: "Video uploaded successfully", video });
-//   } catch (err) {
-//     console.error("Error uploading video:", err.message);
-//     res
-//       .status(500)
-//       .json({ message: err.message || "Sorry, failed to upload video" });
-//   }
-// };
-
-// export { uploadVideo, upload };
-
-export { usersDetail, deleteUser, uploadVideo, loginAdmin };
+    return res.status(200).json({ message: "View counted successfully" });
+  } catch (err) {
+    return res.status(404).json({ err: "Server error" });
+  }
+});
+export {
+  usersDetail,
+  deleteUser,
+  uploadVideo,
+  loginAdmin,
+  getAllVideo,
+  videoViews,
+};
