@@ -1,12 +1,17 @@
 // User.js
 import { DataTypes, Sequelize } from "sequelize";
 import { sequelize } from "../db/index.js";
+
 const VideoModel = sequelize.define("Video", {
   title: {
     type: DataTypes.TEXT,
     allowNull: false,
   },
   description: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  category: {
     type: DataTypes.TEXT,
     allowNull: true,
   },
@@ -18,9 +23,10 @@ const VideoModel = sequelize.define("Video", {
     type: DataTypes.TEXT,
     allowNull: false,
   },
-  image: {
-    type: DataTypes.STRING,
+  likeVideo: {
+    type: DataTypes.INTEGER, // Changed to store like count
     allowNull: true,
+    defaultValue: 0, // Default value for like count
   },
   views: {
     type: DataTypes.INTEGER,

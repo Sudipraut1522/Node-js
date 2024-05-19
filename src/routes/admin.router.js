@@ -6,17 +6,23 @@ import {
   uploadVideo,
   loginAdmin,
   getAllVideo,
+  deleteVideo,
+  editVideo,
 } from "../controller/video.controller.js";
 import { adminMiddleware } from "../middlewares/adminmiddleware.js";
+import { userAuth } from "../middlewares/userauthentaction.js";
 
 const adminRouter = Router();
 adminRouter.route("/adminlogin").post(loginAdmin);
 
 adminRouter.route("/userDetail").get(usersDetail);
-adminRouter.route("/videos").get(getAllVideo);
+adminRouter.route("/videos").get(userAuth, getAllVideo);
 
 adminRouter.route("/upload").post([upload.single("videourl"), uploadVideo]);
-adminRouter.route("/delete/:id").delete(deleteUser);
+adminRouter.route("/delete/:id").delete(userAuth, deleteUser);
+adminRouter.route("/deletevideo/:id").delete(userAuth, deleteVideo);
+adminRouter.route("/editvideo/:id").patch(userAuth, editVideo);
+
 // adminRouter
 //   .route("/upload/:username")
 //   .post([adminMiddleware, upload.single("url"), uploadVideo]);

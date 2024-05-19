@@ -9,6 +9,7 @@ const Users = sequelize.define("Register", {
     lowercase: true,
     trim: true,
   },
+
   email: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -25,6 +26,10 @@ const Users = sequelize.define("Register", {
   isAdmin: {
     type: DataTypes.BOOLEAN,
     default: false,
+  },
+  imageurl: {
+    type: DataTypes.STRING,
+    allowNull: true,
   },
 });
 

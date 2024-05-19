@@ -2,10 +2,10 @@ import { Users } from "../models/users.models.js";
 import { VideoModel } from "../models/video.model.js";
 import { asyncHandler } from "../utils/asynchandlers.js";
 import { ApiError } from "../utils/ApiError.js";
-import { ApiResponce } from "../utils/ApiResponce.js";
 import uploadOnCloudinary from "../utils/cloudnary.js";
-import { upload } from "../middlewares/multer.middleware.js";
 import jwt from "jsonwebtoken";
+import { Like } from "../models/like.modal.js";
+import { WatchHistory } from "../models/watchhistory.js";
 
 // const videoUpload = asyncHandler(async (req, res) => {
 //   try {
@@ -69,7 +69,7 @@ const loginAdmin = asyncHandler(async (req, res) => {
     console.log(id);
 
     if (user.isAdmin == true) {
-      jwt.sign({ id }, secretKey, { expiresIn: "400s" }, (err, token) => {
+      jwt.sign({ id }, secretKey, (err, token) => {
         if (err) {
           console.error("Error generating token:", err);
           return res.status(500).json({ message: "Internal server error" });
@@ -125,14 +125,38 @@ const deleteUser = asyncHandler(async (req, res) => {
     res.send("error");
   }
 });
+const deleteVideo = asyncHandler(async (req, res) => {
+  const videoId = req.params.id;
+
+  try {
+    await Like.destroy({
+      where: {
+        videoId: videoId,
+      },
+    });
+
+    await VideoModel.destroy({
+      where: {
+        id: videoId,
+      },
+    });
+
+    res.status(200).json({ message: "Video deletion successful" });
+  } catch (err) {
+    console.error("Error deleting video:", err);
+    res.status(500).json({ error: "Failed to delete video" });
+  }
+});
 
 const uploadVideo = asyncHandler(async (req, res) => {
   try {
-    const { title, description, teachername } = req.body;
+    const { title, description, teachername, category } = req.body;
     console.log("title", description);
 
     if (
-      [title, description, teachername].some((result) => result?.trim() == "")
+      [title, description, teachername, category].some(
+        (result) => result?.trim() == ""
+      )
     ) {
       throw new ApiError(400, "All fields are required");
     } else {
@@ -153,6 +177,7 @@ const uploadVideo = asyncHandler(async (req, res) => {
       }
 
       const cloudinaryResponse = await uploadOnCloudinary(videoFile);
+
       if (!cloudinaryResponse) {
         throw new ApiError(500, "Failed to upload video to Cloudinary");
       }
@@ -162,6 +187,7 @@ const uploadVideo = asyncHandler(async (req, res) => {
         videourl: cloudinaryResponse.secure_url,
         description: description,
         teachername: teachername,
+        category: category,
       });
 
       if (!video) {
@@ -177,10 +203,43 @@ const uploadVideo = asyncHandler(async (req, res) => {
       .json({ message: err.message || "Sorry, failed to upload video" });
   }
 });
+const editVideo = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, teachername, category } = req.body;
+
+    if (
+      ![title, description, teachername, category].every(
+        (field) => field && field.trim()
+      )
+    ) {
+      throw new ApiError(400, "All fields are required");
+    }
+
+    // Check if the video to edit exists
+    const existingVideo = await VideoModel.findByPk(id);
+    if (!existingVideo) {
+      throw new ApiError(404, "Video not found");
+    }
+
+    // Update the video with new data
+    existingVideo.title = title;
+    existingVideo.description = description;
+    existingVideo.teachername = teachername;
+    existingVideo.category = category;
+    await existingVideo.save();
+
+    return res.status(200).json({ message: "Video updated successfully" });
+  } catch (err) {
+    console.error("Error editing video:", err);
+    res
+      .status(err.status || 500)
+      .json({ error: err.message || "Failed to edit video" });
+  }
+});
 
 const videoViews = asyncHandler(async (req, res) => {
   const videoId = req.params.id;
-  console.log("videoid", videoId);
   try {
     const videos = await VideoModel.findOne({
       where: {
@@ -201,6 +260,104 @@ const videoViews = asyncHandler(async (req, res) => {
     return res.status(404).json({ err: "Server error" });
   }
 });
+
+const userlike = asyncHandler(async (req, res) => {
+  const videoId = req.params.id;
+
+  const ID = req.user; // Assuming you have user information available in req.user
+  const userId = ID.user.id; // Assuming userId is nested under 'user'
+
+  try {
+    // Check if the user has already liked the video
+    const existingLike = await Like.findOne({
+      where: {
+        userId: userId,
+        videoId: videoId,
+      },
+    });
+
+    if (existingLike) {
+      return res
+        .status(400)
+        .json({ error: "User has already liked this video" });
+    }
+
+    // Increment the like count for the video
+    const video = await VideoModel.findOne({
+      where: {
+        id: videoId,
+      },
+    });
+
+    if (!video) {
+      return res.status(404).json({ error: "Video not found" });
+    }
+
+    // Increment the like count using Sequelize's increment method
+    await video.increment("likeVideo");
+
+    // Create a like entry for the user and the video
+    await Like.create({
+      userId: userId,
+      videoId: videoId,
+    });
+
+    return res.status(200).json({
+      message: "Like counted successfully",
+      like: video.likeVideo, // Assuming 'likeVideo' is the attribute storing the like count in your VideoModel
+    });
+  } catch (err) {
+    console.error("Error counting like:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+const userWatched = async (req, res) => {
+  const ID = req.user;
+  const userId = ID.user.id;
+  const videoId = req.params.id;
+  try {
+    const watchhistory = await WatchHistory.create({ userId, videoId });
+
+    return res
+      .status(201)
+      .json({ message: "Watch history recorded successfully" });
+  } catch (error) {
+    console.error("Error recording watch history:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+const getAllWatchHistory = async (req, res) => {
+  try {
+    const ID = req.user;
+    const userId = ID.user.id;
+
+    const watchHistory = await WatchHistory.findAll({
+      where: { userId },
+      include: [{ model: VideoModel }],
+    });
+
+    if (watchHistory.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No watch history found for this user" });
+    }
+
+    const formattedHistory = watchHistory.map((entry) => ({
+      watchedAt: entry.watchedAt,
+      videoUrl: entry.Video.videourl,
+      category: entry.Video.category,
+      title: entry.Video.title,
+      teachername: entry.Video.teachername,
+      views: entry.Video.views,
+    }));
+
+    res.status(200).json({ watchHistory: formattedHistory });
+  } catch (error) {
+    console.error("Error retrieving watch history:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 export {
   usersDetail,
   deleteUser,
@@ -208,4 +365,9 @@ export {
   loginAdmin,
   getAllVideo,
   videoViews,
+  deleteVideo,
+  editVideo,
+  userlike,
+  userWatched,
+  getAllWatchHistory,
 };
