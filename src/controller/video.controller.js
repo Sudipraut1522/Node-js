@@ -97,6 +97,21 @@ const getAllVideo = asyncHandler(async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+const getVideoById = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const video = await VideoModel.findByPk(id);
+
+    if (!video) {
+      return res.status(404).json({ message: "Video not found" });
+    }
+
+    res.status(200).json({ video });
+  } catch (error) {
+    console.error("Error occurred while retrieving video:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 const usersDetail = asyncHandler(async (req, res) => {
   try {
     const allUsers = await Users.findAll();
@@ -206,8 +221,9 @@ const uploadVideo = asyncHandler(async (req, res) => {
 const editVideo = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
+    console.log("videoid0", id);
     const { title, description, teachername, category } = req.body;
-
+    console.log("dajshdjasdasd", title);
     if (
       ![title, description, teachername, category].every(
         (field) => field && field.trim()
@@ -216,13 +232,11 @@ const editVideo = asyncHandler(async (req, res) => {
       throw new ApiError(400, "All fields are required");
     }
 
-    // Check if the video to edit exists
     const existingVideo = await VideoModel.findByPk(id);
     if (!existingVideo) {
       throw new ApiError(404, "Video not found");
     }
 
-    // Update the video with new data
     existingVideo.title = title;
     existingVideo.description = description;
     existingVideo.teachername = teachername;
@@ -370,4 +384,5 @@ export {
   userlike,
   userWatched,
   getAllWatchHistory,
+  getVideoById,
 };

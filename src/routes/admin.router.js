@@ -8,6 +8,7 @@ import {
   getAllVideo,
   deleteVideo,
   editVideo,
+  getVideoById,
 } from "../controller/video.controller.js";
 import { adminMiddleware } from "../middlewares/adminmiddleware.js";
 import { userAuth } from "../middlewares/userauthentaction.js";
@@ -21,7 +22,8 @@ adminRouter.route("/videos").get(userAuth, getAllVideo);
 adminRouter.route("/upload").post([upload.single("videourl"), uploadVideo]);
 adminRouter.route("/delete/:id").delete(userAuth, deleteUser);
 adminRouter.route("/deletevideo/:id").delete(userAuth, deleteVideo);
-adminRouter.route("/editvideo/:id").patch(userAuth, editVideo);
+adminRouter.route("/editvideo/:id").patch([userAuth, editVideo]);
+adminRouter.route("/getvideo/:id").get([userAuth, getVideoById]);
 
 // adminRouter
 //   .route("/upload/:username")
