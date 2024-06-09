@@ -23,6 +23,10 @@ const VideoModel = sequelize.define("Video", {
     type: DataTypes.TEXT,
     allowNull: false,
   },
+  subCategory: {
+    type: DataTypes.TEXT,
+    allowNull: false,
+  },
   likeVideo: {
     type: DataTypes.INTEGER, // Changed to store like count
     allowNull: true,

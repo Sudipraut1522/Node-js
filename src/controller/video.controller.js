@@ -7,71 +7,23 @@ import jwt from "jsonwebtoken";
 import { Like } from "../models/like.modal.js";
 import { WatchHistory } from "../models/watchhistory.js";
 
-// const videoUpload = asyncHandler(async (req, res) => {
-//   try {
-//     const { title, description } = req.body;
-
-//     if ([title, description].some((result) => result?.trim() == "")) {
-//       throw new ApiError(400, "All fields are required");
-//     } else {
-//       const existedVideoTitle = await Video.findOne({
-//         where: {
-//           title: title,
-//         },
-//       });
-//       if (existedVideoTitle) {
-//         throw new ApiError(409, "video with title is already existed !!");
-//       }
-//       const avatarLocalPath = req.files?.avatar[0]?.path;
-//       //   const coverImagesLocalPath = req.files?.coverimages[0]?.path;
-
-//       if (!avatarLocalPath) {
-//         throw new ApiError(400, "Avtar file is required");
-//       }
-//       const avatar = await uploadOnCloudinary(avatarLocalPath);
-//       //   const coverimage = await uploadOnCloudinary(coverImagesLocalPath);
-
-//       if (!avatar) {
-//         throw new ApiError(400, "Avtar file is required");
-//       }
-
-//       const user = await Video.create({
-//         title,
-//         avatar: avatar, // Assuming avatar is provided in the request body
-//         description,
-//       });
-
-//       const createdUser = await Video.findByPk(user.id);
-//       if (!createdUser) {
-//         throw new ApiError(500, "User registration failed");
-//       }
-//       return res.status(201).json({ message: "User Register success" });
-//     }
-//   } catch (err) {
-//     console.log("error", err);
-//   }
-// });
 const secretKey = "dasdas";
 const loginAdmin = asyncHandler(async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log("email:", email, "password:", password);
 
     const user = await Users.findOne({
       where: { email: email, password: password },
     });
-    console.log("isadin:", user.isAdmin);
 
     if (!user.isAdmin) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
     const id = user.id;
-    console.log(id);
 
     if (user.isAdmin == true) {
       jwt.sign({ id }, secretKey, (err, token) => {
         if (err) {
-          console.error("Error generating token:", err);
           return res.status(500).json({ message: "Internal server error" });
         }
         res
@@ -82,8 +34,7 @@ const loginAdmin = asyncHandler(async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
   } catch (error) {
-    console.error("Error in login:", error);
-    res.status(500).json({ message: "Something went wrong" });
+    res.status(500).json({ message: "Invalid email or password" });
   }
 });
 
@@ -93,7 +44,6 @@ const getAllVideo = asyncHandler(async (req, res) => {
 
     res.status(200).json({ users: allVideo });
   } catch (error) {
-    console.error("Error occurred while retrieving users:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -108,7 +58,6 @@ const getVideoById = asyncHandler(async (req, res) => {
 
     res.status(200).json({ video });
   } catch (error) {
-    console.error("Error occurred while retrieving video:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -118,14 +67,12 @@ const usersDetail = asyncHandler(async (req, res) => {
 
     res.status(200).json({ users: allUsers });
   } catch (error) {
-    console.error("Error occurred while retrieving users:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 });
 
 const deleteUser = asyncHandler(async (req, res) => {
   const userID = req.params.id;
-  console.log("id", userID);
 
   try {
     const users = await Users.destroy({
@@ -133,11 +80,10 @@ const deleteUser = asyncHandler(async (req, res) => {
         id: userID,
       },
     });
-    console.log("users");
 
     res.status(200).json({ message: "Userdeleted Successful" });
   } catch (err) {
-    res.send("error");
+    res.json({ message: "Something went Wrong" });
   }
 });
 const deleteVideo = asyncHandler(async (req, res) => {
@@ -158,22 +104,20 @@ const deleteVideo = asyncHandler(async (req, res) => {
 
     res.status(200).json({ message: "Video deletion successful" });
   } catch (err) {
-    console.error("Error deleting video:", err);
     res.status(500).json({ error: "Failed to delete video" });
   }
 });
 
 const uploadVideo = asyncHandler(async (req, res) => {
   try {
-    const { title, description, teachername, category } = req.body;
-    console.log("title", description);
+    const { title, description, teachername, category, subCategory } = req.body;
 
     if (
-      [title, description, teachername, category].some(
+      [title, description, teachername, category, subCategory].some(
         (result) => result?.trim() == ""
       )
     ) {
-      throw new ApiError(400, "All fields are required");
+      res.status(400).json({ message: "All fields are required" });
     } else {
       const existingVideo = await VideoModel.findOne({
         where: {
@@ -202,7 +146,8 @@ const uploadVideo = asyncHandler(async (req, res) => {
         videourl: cloudinaryResponse.secure_url,
         description: description,
         teachername: teachername,
-        category: category,
+        category: category.toUpperCase(),
+        subCategory: subCategory,
       });
 
       if (!video) {
@@ -212,7 +157,6 @@ const uploadVideo = asyncHandler(async (req, res) => {
       return res.status(201).json({ message: "Video uploaded successfully" });
     }
   } catch (err) {
-    console.error("Error uploading video:", err);
     res
       .status(err.status || 500)
       .json({ message: err.message || "Sorry, failed to upload video" });
@@ -221,11 +165,10 @@ const uploadVideo = asyncHandler(async (req, res) => {
 const editVideo = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
-    console.log("videoid0", id);
-    const { title, description, teachername, category } = req.body;
-    console.log("dajshdjasdasd", title);
+    const { title, description, teachername, category, subCategory } = req.body;
+
     if (
-      ![title, description, teachername, category].every(
+      ![title, description, teachername, category, subCategory].every(
         (field) => field && field.trim()
       )
     ) {
@@ -237,15 +180,26 @@ const editVideo = asyncHandler(async (req, res) => {
       throw new ApiError(404, "Video not found");
     }
 
+    const updatedVideo = req.file?.path;
+
+    if (updatedVideo) {
+      const cloudinaryResponse = await uploadOnCloudinary(updatedVideo);
+
+      existingVideo.videourl = cloudinaryResponse.secure_url;
+    } else {
+      res.status(500).json({ message: "Failed to upload image to Cloudinary" });
+    }
+
     existingVideo.title = title;
     existingVideo.description = description;
     existingVideo.teachername = teachername;
     existingVideo.category = category;
+    existingVideo.subCategory = subCategory;
+
     await existingVideo.save();
 
     return res.status(200).json({ message: "Video updated successfully" });
   } catch (err) {
-    console.error("Error editing video:", err);
     res
       .status(err.status || 500)
       .json({ error: err.message || "Failed to edit video" });
@@ -260,7 +214,6 @@ const videoViews = asyncHandler(async (req, res) => {
         id: videoId,
       },
     });
-    console.log("videodetail", videos);
 
     if (!videos) {
       return res.status(404).json({ error: "Video not found" });
@@ -282,7 +235,6 @@ const userlike = asyncHandler(async (req, res) => {
   const userId = ID.user.id; // Assuming userId is nested under 'user'
 
   try {
-    // Check if the user has already liked the video
     const existingLike = await Like.findOne({
       where: {
         userId: userId,
@@ -296,7 +248,6 @@ const userlike = asyncHandler(async (req, res) => {
         .json({ error: "User has already liked this video" });
     }
 
-    // Increment the like count for the video
     const video = await VideoModel.findOne({
       where: {
         id: videoId,
@@ -307,7 +258,6 @@ const userlike = asyncHandler(async (req, res) => {
       return res.status(404).json({ error: "Video not found" });
     }
 
-    // Increment the like count using Sequelize's increment method
     await video.increment("likeVideo");
 
     // Create a like entry for the user and the video
@@ -317,11 +267,9 @@ const userlike = asyncHandler(async (req, res) => {
     });
 
     return res.status(200).json({
-      message: "Like counted successfully",
       like: video.likeVideo, // Assuming 'likeVideo' is the attribute storing the like count in your VideoModel
     });
   } catch (err) {
-    console.error("Error counting like:", err);
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -336,7 +284,6 @@ const userWatched = async (req, res) => {
       .status(201)
       .json({ message: "Watch history recorded successfully" });
   } catch (error) {
-    console.error("Error recording watch history:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -349,7 +296,6 @@ const getAllWatchHistory = async (req, res) => {
       where: { userId },
       include: [{ model: VideoModel }],
     });
-
     if (watchHistory.length === 0) {
       return res
         .status(404)
@@ -367,12 +313,62 @@ const getAllWatchHistory = async (req, res) => {
 
     res.status(200).json({ watchHistory: formattedHistory });
   } catch (error) {
-    console.error("Error retrieving watch history:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
+const getReport = asyncHandler(async (req, res) => {
+  try {
+    const totalUser = await Users.count();
+    const totalVideo = await VideoModel.count();
+
+    const videoWithMaxViews = await VideoModel.findOne({
+      order: [["views", "DESC"]],
+    });
+    const videoWithMaxLike = await VideoModel.findOne({
+      order: [["likeVideo", "DESC"]],
+    });
+
+    const totalLike = await VideoModel.sum("likeVideo");
+    const totalViews = await VideoModel.sum("views");
+
+    console.log("totalviews", totalViews);
+
+    res.status(200).json({
+      totaluser: totalUser,
+      totalVideo: totalVideo,
+      mostViews: videoWithMaxViews,
+      videoWithMaxViews: videoWithMaxViews,
+      totalLike: totalLike,
+      totalViews: totalViews,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Internaal server error", Error: err });
+  }
+});
+
+const getVideo = asyncHandler(async (req, res) => {
+  const videoId = req.params.id;
+  console.log("videoId", videoId);
+
+  try {
+    if (!videoId) {
+      res.status(500).json({ mesage: "Sorry to find the Video" });
+    }
+    const video = await VideoModel.findOne({
+      where: {
+        id: videoId,
+      },
+    });
+    res.status(200).json({ mesage: "Success", video: video });
+  } catch (err) {
+    res.status(404).json({ message: "Internal server error" });
+  }
+});
+
 export {
+  getVideo,
+  getReport,
   usersDetail,
   deleteUser,
   uploadVideo,

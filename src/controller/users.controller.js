@@ -3,6 +3,9 @@ import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asynchandlers.js";
 import jwt from "jsonwebtoken";
 import uploadOnCloudinary from "../utils/cloudnary.js";
+import bcrypt from "bcrypt";
+
+const saltRounds = 10;
 
 const secretKey = "dasdas";
 const registerUser = asyncHandler(async (req, res) => {
@@ -19,7 +22,7 @@ const registerUser = asyncHandler(async (req, res) => {
       });
 
       if (existindUser) {
-        throw new ApiError(409, "user with email already exists");
+        res.status(500).json({ message: "user With email already existed" });
       }
 
       const imageFile = req.file?.path;
@@ -29,16 +32,16 @@ const registerUser = asyncHandler(async (req, res) => {
       }
 
       const cloudinaryResponse = await uploadOnCloudinary(imageFile);
-      console.log(cloudinaryResponse);
 
       if (!cloudinaryResponse) {
         throw new ApiError(500, "Failed to upload video to Cloudinary");
       }
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
 
       const user = await Users.create({
         username: username,
         email: email,
-        password: password,
+        password: hashedPassword,
         imageurl: cloudinaryResponse.secure_url,
       });
 
@@ -59,30 +62,36 @@ const registerUser = asyncHandler(async (req, res) => {
 const loginUser = asyncHandler(async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log("emai", email);
 
-    const user = await Users.findOne({ where: { email, password } });
+    const user = await Users.findOne({ where: { email } });
 
-    if (user.email == email && user.password == password) {
+    if (!user) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (passwordMatch) {
       jwt.sign({ user }, secretKey, (err, token) => {
         if (err) {
-          console.error("Error generating token:", err);
           return res.status(500).json({ message: "Internal server error" });
         }
         res.status(200).json({
-          message: "login Successful",
+          message: "Login successful",
           token,
           isAdmin: user.isAdmin,
           profile: user.id,
         });
       });
     } else {
-      return res.json("unvalid user or password");
+      return res.status(400).json({ message: "Invalid email or password" });
     }
   } catch (error) {
-    res.status(500).json("somenthing went wrong");
+    console.error("Error logging in:", error);
+    res.status(500).json({ message: "Something went wrong" });
   }
 });
+
 const userProfile = asyncHandler(async (req, res) => {
   const ID = req.user;
   const userId = ID.user.id;
@@ -90,11 +99,8 @@ const userProfile = asyncHandler(async (req, res) => {
   try {
     const user = await Users.findOne({ where: { id: userId } });
 
-    console.log("User data:", user);
-
     res.status(200).json({ message: "User data", user: user });
   } catch (err) {
-    console.error("Error fetching user data:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -109,16 +115,15 @@ const editUserProfile = asyncHandler(async (req, res) => {
     const user = await Users.findOne({ where: { id: userId } });
 
     if (!user) {
-      throw new ApiError(404, "User not found");
+      res.status(404).json({ message: "User not Found" });
     }
 
-    // Check if any provided fields are empty
     if (
       [username, password, email].some(
         (field) => field !== undefined && field.trim() === ""
       )
     ) {
-      throw new ApiError(400, "Fields cannot be empty");
+      res.status(400).json({ message: "All Field are Required" });
     }
 
     if (username !== undefined) {
@@ -154,7 +159,6 @@ const editUserProfile = asyncHandler(async (req, res) => {
 
     res.json({ message: "Profile updated successfully", user });
   } catch (err) {
-    console.error("Error editing user profile:", err);
     res
       .status(err.status || 500)
       .json({ message: err.message || "Failed to edit user profile" });

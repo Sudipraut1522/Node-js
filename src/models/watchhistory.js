@@ -4,13 +4,7 @@ import { sequelize } from "../db/index.js";
 import { Users } from "./users.models.js";
 import { VideoModel } from "./video.model.js";
 
-// Define the WatchHistory model
 const WatchHistory = sequelize.define("WatchHistory", {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
   userId: {
     type: DataTypes.INTEGER,
     allowNull: true, // Consider whether userId should be allowNull: false based on your requirements
