@@ -6,6 +6,7 @@ import uploadOnCloudinary from "../utils/cloudnary.js";
 import jwt from "jsonwebtoken";
 import { Like } from "../models/like.modal.js";
 import { WatchHistory } from "../models/watchhistory.js";
+import { Comments } from "../models/comments.js";
 
 const secretKey = "dasdas";
 const loginAdmin = asyncHandler(async (req, res) => {
@@ -122,6 +123,7 @@ const uploadVideo = asyncHandler(async (req, res) => {
       const existingVideo = await VideoModel.findOne({
         where: {
           title: title,
+          category: category,
         },
       });
 
@@ -231,8 +233,8 @@ const videoViews = asyncHandler(async (req, res) => {
 const userlike = asyncHandler(async (req, res) => {
   const videoId = req.params.id;
 
-  const ID = req.user; // Assuming you have user information available in req.user
-  const userId = ID.user.id; // Assuming userId is nested under 'user'
+  const ID = req.user;
+  const userId = ID.user.id;
 
   try {
     const existingLike = await Like.findOne({
@@ -260,14 +262,13 @@ const userlike = asyncHandler(async (req, res) => {
 
     await video.increment("likeVideo");
 
-    // Create a like entry for the user and the video
     await Like.create({
       userId: userId,
       videoId: videoId,
     });
 
     return res.status(200).json({
-      like: video.likeVideo, // Assuming 'likeVideo' is the attribute storing the like count in your VideoModel
+      like: video.likeVideo,
     });
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
@@ -302,6 +303,8 @@ const getAllWatchHistory = async (req, res) => {
         .json({ message: "No watch history found for this user" });
     }
 
+    console.log("watchHistory", watchHistory);
+
     const formattedHistory = watchHistory.map((entry) => ({
       watchedAt: entry.watchedAt,
       videoUrl: entry.Video.videourl,
@@ -332,13 +335,13 @@ const getReport = asyncHandler(async (req, res) => {
     const totalLike = await VideoModel.sum("likeVideo");
     const totalViews = await VideoModel.sum("views");
 
-    console.log("totalviews", totalViews);
-
     res.status(200).json({
       totaluser: totalUser,
       totalVideo: totalVideo,
       mostViews: videoWithMaxViews,
       videoWithMaxViews: videoWithMaxViews,
+      mostlike: videoWithMaxLike,
+
       totalLike: totalLike,
       totalViews: totalViews,
     });
@@ -349,7 +352,6 @@ const getReport = asyncHandler(async (req, res) => {
 
 const getVideo = asyncHandler(async (req, res) => {
   const videoId = req.params.id;
-  console.log("videoId", videoId);
 
   try {
     if (!videoId) {
@@ -366,7 +368,114 @@ const getVideo = asyncHandler(async (req, res) => {
   }
 });
 
+const userComment = asyncHandler(async (req, res) => {
+  const videoId = req.params.id;
+
+  const { comment } = req.body;
+
+  const userId = req.user.user.id;
+  try {
+    const video = await VideoModel.findOne({
+      where: {
+        id: videoId,
+      },
+    });
+
+    if (!video) {
+      return res.status(404).json({ error: "Video not found" });
+    }
+
+    const newComment = await Comments.create({
+      userId,
+      videoId,
+      comment,
+    });
+
+    return res.status(201).json({
+      comment: newComment,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+const getAllComment = asyncHandler(async (req, res) => {
+  try {
+    const userComments = await Comments.findAll({
+      include: [{ model: Users }],
+    });
+
+    const formattedComments = userComments.map((comment) => ({
+      id: comment.id,
+      videoId: comment.videoId,
+      comment: comment.comment,
+      userId: comment.Register.id,
+      userImage: comment.Register.imageurl,
+      userName: comment.Register.username,
+    }));
+
+    res.status(200).json({ message: "success", comments: formattedComments });
+  } catch (err) {
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+const getCommentByID = asyncHandler(async (req, res) => {
+  const ID = req.params.id;
+  try {
+    const userComments = await Comments.findAll({
+      where: { videoId: ID },
+      include: [{ model: Users, attributes: ["id", "imageurl", "username"] }],
+    });
+
+    const formattedComments = userComments.map((comment) => ({
+      id: comment.id,
+      comment: comment.comment,
+      userId: comment.Register.id,
+      userImage: comment.Register.imageurl,
+      userName: comment.Register.username,
+    }));
+
+    res.status(200).json({ message: "success", comments: formattedComments });
+  } catch (err) {
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+const deleteComment = asyncHandler(async (req, res) => {
+  const commentId = req.params.id;
+
+  try {
+    if (!commentId) {
+      return res.status(400).json({ message: "No comment ID provided" });
+    }
+
+    const comment = await Comments.findByPk(commentId);
+    console.log("comment ID", comment);
+
+    if (!comment) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+    const commentID = comment.id;
+
+    if (commentID) {
+      await Comments.destroy({
+        where: {
+          id: commentID,
+        },
+      });
+      res.status(200).json({ message: "Comment Deleted Succesful" });
+    }
+  } catch (err) {
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
 export {
+  getCommentByID,
+  deleteComment,
+  getAllComment,
+  userComment,
   getVideo,
   getReport,
   usersDetail,

@@ -6,7 +6,10 @@ import {
   userProfile,
 } from "../controller/users.controller.js";
 import {
+  getAllComment,
   getAllWatchHistory,
+  getCommentByID,
+  userComment,
   userWatched,
   userlike,
   videoViews,
@@ -28,5 +31,7 @@ router.route("/views/:id").post(userAuth, videoViews);
 router.route("/like/:id").post(userAuth, userlike);
 router.route("/watchedvideo/:id").post(userAuth, userWatched);
 router.route("/watchHistory").get(userAuth, getAllWatchHistory);
+router.route("/comment/:id").post(userAuth, userComment);
+router.route("/getcomment/:id").get(userAuth, getCommentByID);
 
 export { router };
