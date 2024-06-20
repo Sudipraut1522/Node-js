@@ -71,7 +71,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
     const passwordMatch = await bcrypt.compare(password, user.password);
 
-    if (passwordMatch) {
+    if (passwordMatch && user.isApproved) {
       jwt.sign({ user }, secretKey, (err, token) => {
         if (err) {
           return res.status(500).json({ message: "Internal server error" });
@@ -87,7 +87,6 @@ const loginUser = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
   } catch (error) {
-    console.error("Error logging in:", error);
     res.status(500).json({ message: "Something went wrong" });
   }
 });

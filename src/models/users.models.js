@@ -5,7 +5,6 @@ const Users = sequelize.define("Register", {
   username: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true,
     lowercase: true,
     trim: true,
   },
@@ -30,6 +29,10 @@ const Users = sequelize.define("Register", {
   imageurl: {
     type: DataTypes.STRING,
     allowNull: true,
+  },
+  isApproved: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
   },
 });
 
